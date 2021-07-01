@@ -1,24 +1,14 @@
-# Default values for foobar.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
-
 imagePullPolicy: Always
 nodeSelector: {}
 
 ingress:
   enabled: false
-  annotations:
-    {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
+  annotations: {}
   hosts:
     - host: multi-juicer.local
       paths:
         - "/"
   tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
 
 service:
   type: ClusterIP
@@ -26,28 +16,18 @@ service:
 
 balancer:
   cookie:
-    # SET THIS TO TRUE IF IN PRODUCTION
-    # Sets secure Flag in cookie
-    # -- Sets the secure attribute on cookie so that it only be send over https
-    secure: false
-    # -- Changes the cookies name used to identify teams. Note will automatically be prefixed with "__Secure-" when balancer.cookie.secure is set to `true`
+    secure: true
     name: balancer
-    # -- Set this to a fixed random alpa-numeric string (recommended length 24 chars). If not set this get randomly generated with every helm upgrade, each rotation invalidates all active cookies / sessions requirering users to login again.
+    # Populate balancer.cookie.cookieParserSecret before deployment
     cookieParserSecret: null
   repository: iteratec/juice-balancer
   tag: null
-  # -- Number of replicas of the juice-balancer deployment
   replicas: 1
   service:
-    # -- Kubernetes service type
     type: ClusterIP
-    # -- internal cluster service IP
     clusterIP: null
-    # -- IP address to assign to load balancer (if supported)
     loadBalancerIP: null
-    # -- list of IP CIDRs allowed access to lb (if supported)
     loadBalancerSourceRanges: null
-    # -- IP address to assign to load balancer (if supported)
     externalIPs: null
   resources:
     requests:
@@ -59,32 +39,26 @@ balancer:
   securityContext: {}
   affinity: {}
   tolerations: []
-  # -- If set to true this skips setting ownerReferences on the teams JuiceShop Deployment and Services. This lets MultiJuicer run in older kubernetes cluster which don't support the reference type or the app/v1 deployment type
   skipOwnerReference: false
   metrics:
-    # -- enables prometheus metrics for the balancer. If set to true you should change the prometheus-scraper password
-    enabled: true
+    enabled: false
     dashboards:
-      # -- if true, creates a Grafana Dashboard Config Map. (also requires metrics.enabled to be true). These will automatically be imported by Grafana when using the Grafana helm chart, see: https://github.com/helm/charts/tree/master/stable/grafana#sidecar-for-dashboards
       enabled: false
     serviceMonitor:
-      # -- If true, creates a Prometheus Operator ServiceMonitor (also requires metrics.enabled to be true). This will also deploy a servicemonitor which monitors metrics from the Juice Shop instances
       enabled: false
     basicAuth:
       username: prometheus-scraper
-      # -- Should be changed when metrics are enabled.
-      password: ERzCT4pwBDxfCKRGmfrMa8KQ8sXf8GKy
+      # Populate balancer.metrics.basicAuth.password before deployment
+      password: null
 
 juiceShop:
-  # -- Specifies how many JuiceShop instances MultiJuicer should start at max. Set to -1 to remove the max Juice Shop instance cap
+  # Configure juiceShop.maxInstances to number of participants
   maxInstances: 10
-  # -- Juice Shop Image to use
   image: bkimminich/juice-shop
-  tag: v12.7.1
-  # -- Change the key when hosting a CTF event. This key gets used to generate the challenge flags. See: https://pwning.owasp-juice.shop/part1/ctf.html#overriding-the-ctfkey
-  ctfKey: "zLp@.-6fMW6L-7R3b!9uR_K!NfkkTr"
-  # -- Specify a custom Juice Shop config.yaml. See the JuiceShop Config Docs for more detail: https://pwning.owasp-juice.shop/part1/customization.html#yaml-configuration-file
-  # @default -- See values.yaml for full details
+  tag: latest
+  # Populate juiceShop.ctfKey before deployment
+  ctfKey: null
+  # Specify a custom Juice Shop config.yaml. See: https://pwning.owasp-juice.shop/part1/customization.html#yaml-configuration-file
   config: |
     application:
       logo: JuiceShopCTF_Logo.png
@@ -93,49 +67,23 @@ juiceShop:
       showGitHubLinks: false
     challenges:
       showHints: true
+      showCodeSnippets: solved
+      safetyOverride: true
     hackingInstructor:
       isEnabled: true
     ctf:
       showFlagsInNotifications: false
-  # -- Specify a custom NODE_ENV for JuiceShop. If value is changed to something other than 'multi-juicer' it's not possible to set a custom config via `juiceShop.config`.
   nodeEnv: "multi-juicer"
-  # -- Optional resources definitions to set for each JuiceShop instance
   resources:
     requests:
       cpu: 150m
       memory: 200Mi
-  #  limits:
-  #    cpu: 100m
-  #    memory: 200Mi
-  # -- Optional securityContext definitions to set for each JuiceShop instance
   securityContext: {}
-  # -- Optional environment variables to set for each JuiceShop instance (see: https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/)
   env: []
-  # env:
-  #   - name: FOO
-  #     valueFrom:
-  #       secretKeyRef:
-  #         key: FOO
-  #         name: secret-resource
-  # -- Optional mount environment variables from configMaps or secrets (see: https://kubernetes.io/docs/tasks/inject-data-application/distribute-credentials-secure/#configure-all-key-value-pairs-in-a-secret-as-container-environment-variables)
   envFrom: []
-  # -- Optional Volumes to set for each JuiceShop instance (see: https://kubernetes.io/docs/concepts/storage/volumes/)
   volumes: []
-  # create config map with a custom logo via: kubectl create configmap custom-logo --from-file custom.png=your-logo.png
-  # then switch out the logo parameter in the juice-shop config section above to the mounted filename.
-  # volumes:
-  # - name: logo
-  #   configMap:
-  #     name: custom-logo
-  # -- Optional VolumeMounts to set for each JuiceShop instance (see: https://kubernetes.io/docs/concepts/storage/volumes/)
   volumeMounts: []
-  # volumeMounts:
-  # - name: logo
-  #   mountPath: /juice-shop/frontend/dist/frontend/assets/public/images/custom.png
-  #   subPath: custom.png
-  #   readOnly: true
 
-# Deletes unused JuiceShop instances after a configurable period of inactivity
 progressWatchdog:
   repository: iteratec/progress-watchdog
   tag: null
@@ -148,14 +96,12 @@ progressWatchdog:
       cpu: 20m
   securityContext: {}
 
-# Deletes unused JuiceShop instances after a configurable period of inactivity
 juiceShopCleanup:
   repository: iteratec/cleaner
   tag: null
   enabled: true
-  # -- Specifies when Juice Shop instances will be deleted when unused for that period.
+  # Configure juiceShopCleanup.gracePeriod to exceed length of event
   gracePeriod: 1d
-  # -- Cron in which the clean up job is run. Defaults to once in an hour. Change this if your grace period if shorter than 1 hour
   cron: "0 * * * *"
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 1
